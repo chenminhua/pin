@@ -19,7 +19,7 @@ func store(reader *bufio.Reader, contentLen uint32) {
 	contentBuf := make([]byte, contentLen)
 	_,err := io.ReadFull(reader, contentBuf)
 	if err != nil {
-		log.Print(err)
+		log.Fatal(err)
 		return
 	}
 	storedContent.Lock()
@@ -28,6 +28,9 @@ func store(reader *bufio.Reader, contentLen uint32) {
 }
 
 func paste(writer *bufio.Writer) {
+	h := Header{1, nil, 'P',
+		uint32(len(storedContent.content))}
+	writer.Write(h.Bytes())
 	writer.Write(storedContent.content)
 	writer.Flush()
 }

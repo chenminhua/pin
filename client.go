@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"io"
 	"net"
 	"log"
@@ -45,7 +46,6 @@ func RunCopy(conf Conf) {
 	header := Header{1, nil, byte('C'), contentLength}
 	writer.Write(header.Bytes())
 	writer.Write(contentBytes)
-	log.Print(contentBytes)
 	// 写入socket
 	err = client.writer.Flush()
 	if err != nil {
@@ -60,14 +60,18 @@ func RunPaste(conf Conf) {
 	defer conn.Close()
 
 	// 发送paste请求
-	header := Header{1, nil, byte('P'), 0}
-	writer.Write(header.Bytes())
+	h := Header{1, nil, byte('P'), 0}
+	writer.Write(h.Bytes())
 	writer.Flush()
 	// read
-	contentBuf := make([]byte, 100)
+	headerBuf := make([]byte, HeaderSize)
+	if _, err := io.ReadFull(reader, headerBuf); err != nil {
+		log.Fatal(err)
+	}
+	header := GetHeader(headerBuf)
+	contentBuf := make([]byte, header.ContentLen)
 	if _, err := io.ReadFull(reader, contentBuf); err != nil {
 		log.Fatal(err)
 	}
-
-
+	binary.Write(os.Stdout, binary.LittleEndian, contentBuf)
 }
