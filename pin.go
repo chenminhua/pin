@@ -3,8 +3,11 @@ package main
 import (
 	// "fmt"
 	"flag"
+	"github.com/mitchellh/go-homedir"
+	"log"
 	"time"
 )
+
 
 // Conf - Shared config
 type Conf struct {
@@ -15,18 +18,27 @@ type Conf struct {
 
 const (
 	DefaultConfigFile = "~/.pin.toml"
+
 )
+
+
+func expandConfigFile(path string) string {
+	file, err := homedir.Expand(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return file
+}
+
 
 func main() {
 	isCopy := flag.Bool("copy", false, "copy sth to server")
 	isServer := flag.Bool("server", false, "start a server")
 	timeout := flag.Uint("timeout", 10, "connection timeout (seconds)")
+	configFile := flag.String("config", DefaultConfigFile, "configuration file")
 	flag.Parse()
 
-	var conf Conf
-	conf.Connect = "127.0.0.1:7788"
-	conf.Listen = "0.0.0.0:7788"
-	conf.Timeout = time.Duration(*timeout) * time.Second
+	conf := Config(configFile, timeout)
 
 	if *isServer {
 		RunServer(conf)
