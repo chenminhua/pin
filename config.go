@@ -10,19 +10,13 @@ import (
 const (
 	DefaultListen = "0.0.0.0:7788"
 	DefaultConnect = "127.0.0.1:7788"
+	DefaultKey = "iorDDkjFaMAJp8HNxwAWoyNKqLGTmG87"
 )
 
 type tomlConfig struct {
 	Connect     string
 	Listen      string
-	EncryptSk   string
-	EncryptSkID uint64
-	Psk         string
-	SignPk      string
-	SignSk      string
-	Timeout     uint
-	DataTimeout uint
-	TTL         uint
+	Key         string
 }
 
 func Config(configFile *string, timeout *uint) Conf {
@@ -42,6 +36,10 @@ func Config(configFile *string, timeout *uint) Conf {
 	conf.Listen = DefaultListen
 	if tomlConf.Listen != "" {
 		conf.Listen = tomlConf.Listen
+	}
+	conf.Key = DefaultKey
+	if tomlConf.Key != "" {
+		conf.Key = tomlConf.Key
 	}
 	conf.Timeout = time.Duration(*timeout) * time.Second
 

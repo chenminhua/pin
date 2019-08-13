@@ -13,12 +13,12 @@ import (
 type Conf struct {
 	Connect        string
 	Listen         string
+	Key            string
 	Timeout        time.Duration
 }
 
 const (
 	DefaultConfigFile = "~/.pin.toml"
-
 )
 
 

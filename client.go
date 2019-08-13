@@ -43,7 +43,7 @@ func RunCopy(conf Conf) {
 	contentBytes := content.Bytes()
 	contentLength := uint32(len(contentBytes))
 	log.Print(contentLength)
-	header := Header{1, nil, byte('C'), contentLength}
+	header := Header{1, []byte(conf.Key), byte('C'), contentLength}
 	writer.Write(header.Bytes())
 	writer.Write(contentBytes)
 	// 写入socket
@@ -60,7 +60,7 @@ func RunPaste(conf Conf) {
 	defer conn.Close()
 
 	// 发送paste请求
-	h := Header{1, nil, byte('P'), 0}
+	h := Header{1, []byte(conf.Key), byte('P'), 0}
 	writer.Write(h.Bytes())
 	writer.Flush()
 	// read
@@ -69,6 +69,14 @@ func RunPaste(conf Conf) {
 		log.Fatal(err)
 	}
 	header := GetHeader(headerBuf)
+	if header.OpCode == 'E' {
+		errmsgBuf := make([]byte, header.ContentLen)
+		if _, err := io.ReadFull(reader, errmsgBuf); err != nil {
+			log.Fatal(err)
+		}
+		log.Fatal(string(errmsgBuf))
+		return
+	}
 	contentBuf := make([]byte, header.ContentLen)
 	if _, err := io.ReadFull(reader, contentBuf); err != nil {
 		log.Fatal(err)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -35,7 +36,7 @@ func paste(writer *bufio.Writer) {
 	writer.Flush()
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conf Conf, conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 	var headerBuf = make([]byte, HeaderSize)
@@ -43,6 +44,16 @@ func handleConnection(conn net.Conn) {
 	header := GetHeader(headerBuf)
 	if err != nil {
 		log.Print(err)
+		return
+	}
+	if string(header.Key) != conf.Key {
+		fmt.Println("fefwe")
+		errMsg := []byte("wrong key")
+		h := Header{1, nil, 'E',
+			uint32(len(errMsg))}
+		writer.Write(h.Bytes())
+		writer.Write(errMsg)
+		writer.Flush()
 		return
 	}
 	if header.OpCode == byte('C') {
@@ -67,6 +78,6 @@ func RunServer(conf Conf) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		handleConnection(conn)
+		handleConnection(conf, conn)
 	}
 }
