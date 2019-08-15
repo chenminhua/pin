@@ -13,20 +13,46 @@ import (
 	"time"
 )
 
-type ClientConnection struct {
+type Client struct {
 	conn net.Conn
+	conf Conf
 	reader *bufio.Reader
 	writer *bufio.Writer
 }
 
-func connect(conf Conf) *ClientConnection {
+func connect(conf Conf) *Client {
 	conn, err := net.DialTimeout("tcp", conf.Connect, conf.Timeout)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("unable to connect %v", conf.Connect))
 	}
 	conn.SetDeadline(time.Now().Add(conf.Timeout))
 	reader, writer := bufio.NewReader(conn), bufio.NewWriter(conn)
-	return &ClientConnection{conn, reader, writer}
+	return &Client{conn, conf, reader, writer}
+}
+
+func (c *Client) send(header *Header, content []byte) {
+	var err error
+	_, err = c.writer.Write(header.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = c.writer.Write(content)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = c.writer.Flush()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (c *Client) read(contentLength uint32) []byte {
+	buf := make([]byte, contentLength)
+	_, err := io.ReadFull(c.reader, buf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return buf
 }
 
 // 将小文件的二进制流上传到服务器
@@ -35,8 +61,7 @@ func connect(conf Conf) *ClientConnection {
 // 如果字符串为空则读os.Stdin
 func RunCopy(conf Conf, filepath string, str string) {
 	client := connect(conf)
-	conn, writer := client.conn, client.writer
-	defer conn.Close()
+	defer client.conn.Close()
 
 	var contentBytes []byte
 	var err error
@@ -60,16 +85,9 @@ func RunCopy(conf Conf, filepath string, str string) {
 		contentBytes = contentBuffer.Bytes()
 	}
 
-	contentLength := uint32(len(contentBytes))
-	log.Print(contentLength)
-	header := Header{1, []byte(conf.Key), byte('C'), contentLength}
-	writer.Write(header.Bytes())
-	writer.Write(contentBytes)
-	// 写入socket
-	err = client.writer.Flush()
-	if err != nil {
-		log.Fatal(err)
-	}
+	header := CopyOpHeader(conf.Key, len(contentBytes))
+
+	client.send(header, contentBytes)
 }
 
 
@@ -79,28 +97,21 @@ func RunPaste(conf Conf) {
 	defer conn.Close()
 
 	// 发送paste请求
-	h := Header{1, []byte(conf.Key), byte('P'), 0}
+	h := PasteOpHeader(conf.Key, 0)
 	writer.Write(h.Bytes())
 	writer.Flush()
-	// read
-	headerBuf := make([]byte, HeaderSize)
-	if _, err := io.ReadFull(reader, headerBuf); err != nil {
+
+	header, err := GetHeader(reader)
+	if err != nil {
 		log.Fatal(err)
 	}
-	header := GetHeader(headerBuf)
 	if header.OpCode == 'E' {
-		errmsgBuf := make([]byte, header.ContentLen)
-		if _, err := io.ReadFull(reader, errmsgBuf); err != nil {
-			log.Fatal(err)
-		}
-		log.Fatal(string(errmsgBuf))
+		errMsg := client.read(header.ContentLen)
+		log.Fatal(string(errMsg))
 		return
 	}
-	contentBuf := make([]byte, header.ContentLen)
-	if _, err := io.ReadFull(reader, contentBuf); err != nil {
-		log.Fatal(err)
-	}
-	binary.Write(os.Stdout, binary.LittleEndian, contentBuf)
+	content := client.read(header.ContentLen)
+	binary.Write(os.Stdout, binary.LittleEndian, content)
 }
 
 func RunPipeCopy(conf Conf) {
@@ -108,7 +119,7 @@ func RunPipeCopy(conf Conf) {
 	//conn, writer, reader := client.conn, client.writer, client.reader
 	//defer conn.Close()
 	//
-	//h := Header{}
+	//h := PipePasteOpHeader(conf.Key)
 }
 
 func RunPipePaste(conf Conf) {

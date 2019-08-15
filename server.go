@@ -2,12 +2,58 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"log"
 	"net"
 	"sync"
 )
+//
+
+// client connection on server end
+type SClient struct {
+	conn net.Conn
+	conf Conf
+	reader *bufio.Reader
+	writer *bufio.Writer
+}
+
+func NewSClient(conn net.Conn, conf Conf) *SClient {
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+	return &SClient{conn, conf, reader, writer}
+}
+
+func (c *SClient) returnException(msg string) {
+	// 1.log
+	// 2.return to client
+	h := ErrReplyHeader(c.conf.Key, len(msg))
+	c.send(h, []byte(msg))
+}
+
+func (c *SClient) send(header *Header, content []byte) {
+	var err error
+	_, err = c.writer.Write(header.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = c.writer.Write(content)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = c.writer.Flush()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (c *SClient) read(contentLength uint32) []byte {
+	buf := make([]byte, contentLength)
+	_, err := io.ReadFull(c.reader, buf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return buf
+}
 
 var storedContent StoredContent
 
@@ -28,56 +74,42 @@ func store(reader *bufio.Reader, contentLen uint32) {
 	storedContent.Unlock()
 }
 
-func paste(writer *bufio.Writer) {
-	h := Header{1, nil, 'P',
-		uint32(len(storedContent.content))}
-	writer.Write(h.Bytes())
-	writer.Write(storedContent.content)
-	writer.Flush()
-}
+func (c *SClient) handle() {
 
-func handleConnection(conf Conf, conn net.Conn) {
-	reader := bufio.NewReader(conn)
-	writer := bufio.NewWriter(conn)
-	var headerBuf = make([]byte, HeaderSize)
-	_, err := io.ReadFull(reader, headerBuf)
-	header := GetHeader(headerBuf)
+	header, err := GetHeader(c.reader)
 	if err != nil {
-		log.Print(err)
+		c.returnException("Wrong Header")
 		return
 	}
-	if string(header.Key) != conf.Key {
-		fmt.Println("fefwe")
-		errMsg := []byte("wrong key")
-		h := Header{1, nil, 'E',
-			uint32(len(errMsg))}
-		writer.Write(h.Bytes())
-		writer.Write(errMsg)
-		writer.Flush()
+	if string(header.Key) != c.conf.Key {
+		c.returnException("Wrong key")
 		return
 	}
 	if header.OpCode == byte('C') {
-		store(reader, header.ContentLen)
+		store(c.reader, header.ContentLen)
 	}
 	if header.OpCode == byte('P') {
-		paste(writer)
+		h := PasteOpHeader(c.conf.Key, len(storedContent.content))
+		c.send(h, storedContent.content)
 	}
 
-	defer conn.Close()
+	defer c.conn.Close()
+
 }
 
 func RunServer(conf Conf) {
 	// go handleSignals()
-	listen, err := net.Listen("tcp", conf.Listen)
+	listener, err := net.Listen("tcp", conf.Listen)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer listen.Close()
+	defer listener.Close()
 	for {
-		conn, err := listen.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			log.Fatal(err)
 		}
-		handleConnection(conf, conn)
+		client := NewSClient(conn, conf)
+		client.handle()
 	}
 }
