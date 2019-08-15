@@ -36,9 +36,11 @@ func (c *Client) send(header *Header, content []byte) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = c.writer.Write(content)
-	if err != nil {
-		log.Fatal(err)
+	if content != nil {
+		_, err = c.writer.Write(content)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	err = c.writer.Flush()
 	if err != nil {
@@ -93,15 +95,12 @@ func RunCopy(conf Conf, filepath string, str string) {
 
 func RunPaste(conf Conf) {
 	client := connect(conf)
-	conn, writer, reader := client.conn, client.writer, client.reader
-	defer conn.Close()
+	defer client.conn.Close()
 
 	// 发送paste请求
-	h := PasteOpHeader(conf.Key, 0)
-	writer.Write(h.Bytes())
-	writer.Flush()
+	client.send(PasteOpHeader(conf.Key, 0), nil)
 
-	header, err := GetHeader(reader)
+	header, err := GetHeader(client.reader)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,13 +114,57 @@ func RunPaste(conf Conf) {
 }
 
 func RunPipeCopy(conf Conf) {
-	//client := connect(conf)
-	//conn, writer, reader := client.conn, client.writer, client.reader
-	//defer conn.Close()
-	//
-	//h := PipePasteOpHeader(conf.Key)
+	client := connect(conf)
+	defer client.conn.Close()
+	// 发送 pipe copy请求
+	client.send(PipeCopyOpHeader(conf.Key), nil)
+
+	header, err := GetHeader(client.reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if header.OpCode == 'E' {
+		errMsg := client.read(header.ContentLen)
+		log.Fatal(string(errMsg))
+		return
+	}
+
+	if header.OpCode == 'w' {
+		// 表示现在没有receiver，你需要等待
+	}
+
+	if header.OpCode == 'c' {
+		// 表示你可以写了
+
+	}
 }
 
 func RunPipePaste(conf Conf) {
+	client := connect(conf)
+	defer client.conn.Close()
+	client.send(PipePasteOpHeader(conf.Key), nil)
+
+	// 发送 pipe paste请求
+	client.send(PipePasteOpHeader(conf.Key), nil)
+
+	header, err := GetHeader(client.reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if header.OpCode == 'E' {
+		errMsg := client.read(header.ContentLen)
+		log.Fatal(string(errMsg))
+		return
+	}
+
+	if header.OpCode == 'w' {
+		// 表示现在没有receiver，你需要等待
+	}
+
+	if header.OpCode == 'p' {
+		// 表示你可以写了
+	}
 
 }

@@ -5,9 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
-	"sync"
 )
-//
 
 // client connection on server end
 type SClient struct {
@@ -56,11 +54,7 @@ func (c *SClient) read(contentLength uint32) []byte {
 }
 
 var storedContent StoredContent
-
-type StoredContent struct {
-	sync.RWMutex
-	content []byte
-}
+var pipe *Pipe = &Pipe{nil, []*SClient{}}
 
 func store(reader *bufio.Reader, contentLen uint32) {
 	contentBuf := make([]byte, contentLen)
@@ -74,6 +68,37 @@ func store(reader *bufio.Reader, contentLen uint32) {
 	storedContent.Unlock()
 }
 
+func (c *SClient) handleNormalCmd(header *Header) {
+	if header.OpCode == byte('C') {
+		store(c.reader, header.ContentLen)
+	}
+	if header.OpCode == byte('P') {
+		h := PasteOpHeader(c.conf.Key, len(storedContent.content))
+		c.send(h, storedContent.content)
+	}
+	defer c.conn.Close()
+
+}
+
+func (c *SClient) handlePipeCmd(header *Header) {
+	// someone try to paste something from pipe channel
+	if header.OpCode == byte('p') {
+		// todo thread-safe??
+		log.Print("new receiver try to join the pipe")
+		pipe.receiveClients = append(pipe.receiveClients, c)
+	}
+	if header.OpCode == byte('c') {
+		log.Print("new sender try to join the pipe")
+		if pipe.sendClient == nil {
+			pipe.sendClient = c
+			log.Print("new sender joined the pipe")
+		} else {
+			log.Print("new sender failed to join the pipe, pipe occupied by other sender")
+			c.returnException("pipe occupied by other sender")
+		}
+	}
+}
+
 func (c *SClient) handle() {
 
 	header, err := GetHeader(c.reader)
@@ -85,16 +110,11 @@ func (c *SClient) handle() {
 		c.returnException("Wrong key")
 		return
 	}
-	if header.OpCode == byte('C') {
-		store(c.reader, header.ContentLen)
+	if header.OpCode == byte('p') || header.OpCode == byte('c') {
+		c.handlePipeCmd(header)
+	} else {
+		c.handleNormalCmd(header)
 	}
-	if header.OpCode == byte('P') {
-		h := PasteOpHeader(c.conf.Key, len(storedContent.content))
-		c.send(h, storedContent.content)
-	}
-
-	defer c.conn.Close()
-
 }
 
 func RunServer(conf Conf) {
