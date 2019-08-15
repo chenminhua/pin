@@ -13,6 +13,7 @@ const PasteOpCode = byte('P')
 const ErrReplyCode = byte('E')
 const PipeCopyOpCode = byte('c')
 const PipePasteOpCode = byte('p')
+const PipeTransferOpCode = byte('t')
 
 
 type Header struct {
@@ -62,4 +63,8 @@ func PipePasteOpHeader(key string) *Header {
 
 func PipeCopyOpHeader(key string) *Header {
 	return &Header{ProtocolVersion, []byte(key), PipeCopyOpCode, 0}
+}
+
+func PipeTransferOpHeader(key string, contentLength int) *Header {
+	return &Header{ProtocolVersion, []byte(key), PipeTransferOpCode, uint32(contentLength)}
 }

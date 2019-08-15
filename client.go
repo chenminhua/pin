@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"time"
 )
 
 type Client struct {
@@ -25,7 +24,15 @@ func connect(conf Conf) *Client {
 	if err != nil {
 		log.Fatal(fmt.Sprintf("unable to connect %v", conf.Connect))
 	}
-	conn.SetDeadline(time.Now().Add(conf.Timeout))
+	reader, writer := bufio.NewReader(conn), bufio.NewWriter(conn)
+	return &Client{conn, conf, reader, writer}
+}
+
+func connectWithoutTimeout(conf Conf) *Client {
+	conn, err := net.Dial("tcp", conf.Connect)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("unable to connect %v", conf.Connect))
+	}
 	reader, writer := bufio.NewReader(conn), bufio.NewWriter(conn)
 	return &Client{conn, conf, reader, writer}
 }
@@ -113,58 +120,109 @@ func RunPaste(conf Conf) {
 	binary.Write(os.Stdout, binary.LittleEndian, content)
 }
 
-func RunPipeCopy(conf Conf) {
-	client := connect(conf)
+func RunPipeCopy(conf Conf, filepath string) {
+	client := connectWithoutTimeout(conf)
 	defer client.conn.Close()
 	// 发送 pipe copy请求
 	client.send(PipeCopyOpHeader(conf.Key), nil)
+	for {
+		header, err := GetHeader(client.reader)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	header, err := GetHeader(client.reader)
-	if err != nil {
-		log.Fatal(err)
+		if header.OpCode == 'E' {
+			errMsg := client.read(header.ContentLen)
+			log.Fatal(string(errMsg))
+			return
+		}
+
+		if header.OpCode == 'w' {
+			log.Print("waiting for the receiver")
+			// 表示现在没有receiver，你需要等待
+		}
+
+		if header.OpCode == 'c' {
+			// 表示你可以写了
+			file, err := os.Open("./bigfile")
+			if err != nil {
+				println(err)
+			}
+			defer file.Close()
+			//var block_size int64 = 1024 * 1024
+			buf := make([]byte, PIPE_BLOCK_SIZE)
+			var offset int64 = 0
+			for {
+				n, err := file.ReadAt(buf, offset)
+				if err != nil && err != io.EOF {
+					log.Print("ERROR happened while reading file ",err)
+				}
+
+				client.send(PipeTransferOpHeader(conf.Key, n), buf)
+				log.Println("...", offset, "...", n)
+				offset += PIPE_BLOCK_SIZE
+				if int64(n) < PIPE_BLOCK_SIZE {
+					return
+				}
+
+
+			}
+
+
+		}
 	}
 
-	if header.OpCode == 'E' {
-		errMsg := client.read(header.ContentLen)
-		log.Fatal(string(errMsg))
-		return
-	}
-
-	if header.OpCode == 'w' {
-		// 表示现在没有receiver，你需要等待
-	}
-
-	if header.OpCode == 'c' {
-		// 表示你可以写了
-
-	}
 }
 
 func RunPipePaste(conf Conf) {
-	client := connect(conf)
+	client := connectWithoutTimeout(conf)
 	defer client.conn.Close()
 	client.send(PipePasteOpHeader(conf.Key), nil)
 
 	// 发送 pipe paste请求
 	client.send(PipePasteOpHeader(conf.Key), nil)
 
-	header, err := GetHeader(client.reader)
+	var offset int64 = 0
+	file, err := os.OpenFile("./bigfile_new.pdf", os.O_RDWR, 0644)
 	if err != nil {
-		log.Fatal(err)
+		println(err)
+	}
+	defer file.Close()
+
+	for {
+		header, err := GetHeader(client.reader)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if header.OpCode == 'E' {
+			errMsg := client.read(header.ContentLen)
+			log.Fatal(string(errMsg))
+			return
+		}
+		//
+		//if header.OpCode == 'w' {
+		//	// 表示现在没有receiver，你需要等待
+		//}
+
+
+		if header.OpCode == 't' {
+			// 表示你可以写了
+			log.Print(header.ContentLen)
+			buf := client.read(header.ContentLen)
+			_, err = file.WriteAt(buf, offset)
+			offset += int64(header.ContentLen)
+			if err != nil {
+				log.Print(err)
+			}
+			if int64(header.ContentLen) < PIPE_BLOCK_SIZE {
+				log.Print("return")
+				return
+			}
+		}
 	}
 
-	if header.OpCode == 'E' {
-		errMsg := client.read(header.ContentLen)
-		log.Fatal(string(errMsg))
-		return
-	}
 
-	if header.OpCode == 'w' {
-		// 表示现在没有receiver，你需要等待
-	}
 
-	if header.OpCode == 'p' {
-		// 表示你可以写了
-	}
 
 }

@@ -47,14 +47,14 @@ func main() {
 	if *isServer {
 		RunServer(conf)
 	} else {
-		if (*isPipe) {
-			if (*isCopy) {
-				RunPipeCopy(conf)
+		if *isPipe {
+			if *isCopy {
+				RunPipeCopy(conf, "")
 			} else {
 				RunPipePaste(conf)
 			}
 		} else {
-			if (*isCopy) {
+			if *isCopy {
 				RunCopy(conf, *filepath, *str)
 			} else {
 				RunPaste(conf)

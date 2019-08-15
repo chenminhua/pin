@@ -34,10 +34,13 @@ func (c *SClient) send(header *Header, content []byte) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = c.writer.Write(content)
-	if err != nil {
-		log.Fatal(err)
+	if content != nil {
+		_, err = c.writer.Write(content)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+
 	err = c.writer.Flush()
 	if err != nil {
 		log.Fatal(err)
@@ -54,7 +57,7 @@ func (c *SClient) read(contentLength uint32) []byte {
 }
 
 var storedContent StoredContent
-var pipe *Pipe = &Pipe{nil, []*SClient{}}
+var pipe *Pipe = &Pipe{nil, nil}
 
 func store(reader *bufio.Reader, contentLen uint32) {
 	contentBuf := make([]byte, contentLen)
@@ -85,7 +88,7 @@ func (c *SClient) handlePipeCmd(header *Header) {
 	if header.OpCode == byte('p') {
 		// todo thread-safe??
 		log.Print("new receiver try to join the pipe")
-		pipe.receiveClients = append(pipe.receiveClients, c)
+		pipe.receiveClient = c
 	}
 	if header.OpCode == byte('c') {
 		log.Print("new sender try to join the pipe")
@@ -98,6 +101,7 @@ func (c *SClient) handlePipeCmd(header *Header) {
 		}
 	}
 	pipe.checkAndRun()
+
 }
 
 func (c *SClient) handle() {
@@ -111,7 +115,7 @@ func (c *SClient) handle() {
 		c.returnException("Wrong key")
 		return
 	}
-	if header.OpCode == byte('p') || header.OpCode == byte('c') {
+	if header.OpCode == byte('p') || header.OpCode == byte('c') || header.OpCode == byte('t') {
 		c.handlePipeCmd(header)
 	} else {
 		c.handleNormalCmd(header)
