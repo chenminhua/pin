@@ -97,6 +97,7 @@ func (c *SClient) handlePipeCmd(header *Header) {
 			c.returnException("pipe occupied by other sender")
 		}
 	}
+	pipe.checkAndRun()
 }
 
 func (c *SClient) handle() {
