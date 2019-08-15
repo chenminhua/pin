@@ -77,6 +77,9 @@ func RunCopy(conf Conf, filepath string, str string) {
 
 	if filepath != "" {
 		// 读文件
+		if !FileExists(filepath) {
+			log.Fatal("file not exist")
+		}
 		contentBytes, err = ioutil.ReadFile(filepath)
 		if err != nil {
 			log.Fatal(err)
@@ -144,13 +147,13 @@ func RunPipeCopy(conf Conf, filepath string) {
 
 		if header.OpCode == 'c' {
 			// 表示你可以写了
-			file, err := os.Open("./bigfile")
+			file, err := os.Open(filepath)
 			if err != nil {
 				println(err)
 			}
 			defer file.Close()
-			//var block_size int64 = 1024 * 1024
 			buf := make([]byte, PIPE_BLOCK_SIZE)
+			// todo progress
 			var offset int64 = 0
 			for {
 				n, err := file.ReadAt(buf, offset)
@@ -159,22 +162,16 @@ func RunPipeCopy(conf Conf, filepath string) {
 				}
 
 				client.send(PipeTransferOpHeader(conf.Key, n), buf)
-				log.Println("...", offset, "...", n)
 				offset += PIPE_BLOCK_SIZE
 				if int64(n) < PIPE_BLOCK_SIZE {
 					return
 				}
-
-
 			}
-
-
 		}
 	}
-
 }
 
-func RunPipePaste(conf Conf) {
+func RunPipePaste(conf Conf, filepath string) {
 	client := connectWithoutTimeout(conf)
 	defer client.conn.Close()
 	client.send(PipePasteOpHeader(conf.Key), nil)
@@ -183,7 +180,8 @@ func RunPipePaste(conf Conf) {
 	client.send(PipePasteOpHeader(conf.Key), nil)
 
 	var offset int64 = 0
-	file, err := os.OpenFile("./bigfile_new.pdf", os.O_RDWR, 0644)
+
+	file, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		println(err)
 	}
@@ -200,11 +198,6 @@ func RunPipePaste(conf Conf) {
 			log.Fatal(string(errMsg))
 			return
 		}
-		//
-		//if header.OpCode == 'w' {
-		//	// 表示现在没有receiver，你需要等待
-		//}
-
 
 		if header.OpCode == 't' {
 			// 表示你可以写了
@@ -221,8 +214,4 @@ func RunPipePaste(conf Conf) {
 			}
 		}
 	}
-
-
-
-
 }

@@ -48,10 +48,19 @@ func main() {
 		RunServer(conf)
 	} else {
 		if *isPipe {
+			if *filepath == "" {
+				log.Fatal("please specify the filepath you want to transfer")
+			}
 			if *isCopy {
-				RunPipeCopy(conf, "")
+				if !FileExists(*filepath) {
+					log.Fatal("file not exist")
+				}
+				RunPipeCopy(conf, *filepath)
 			} else {
-				RunPipePaste(conf)
+				if FileExists(*filepath) {
+					log.Fatal("file already exist")
+				}
+				RunPipePaste(conf, *filepath)
 			}
 		} else {
 			if *isCopy {
