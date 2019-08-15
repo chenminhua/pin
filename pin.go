@@ -33,6 +33,10 @@ func expandConfigFile(path string) string {
 
 func main() {
 	isCopy := flag.Bool("copy", false, "copy sth to server")
+	isPipe := flag.Bool("pipe", false, "pipe")
+
+	filepath := flag.String("f", "", "file")
+	str := flag.String("s", "", "string")
 	isServer := flag.Bool("server", false, "start a server")
 	timeout := flag.Uint("timeout", 10, "connection timeout (seconds)")
 	configFile := flag.String("config", DefaultConfigFile, "configuration file")
@@ -43,11 +47,20 @@ func main() {
 	if *isServer {
 		RunServer(conf)
 	} else {
-		if (*isCopy) {
-			RunCopy(conf)
+		if (*isPipe) {
+			if (*isCopy) {
+				RunPipeCopy(conf)
+			} else {
+				RunPipePaste(conf)
+			}
 		} else {
-			RunPaste(conf)
+			if (*isCopy) {
+				RunCopy(conf, *filepath, *str)
+			} else {
+				RunPaste(conf)
+			}
 		}
+
 
 	}
 	

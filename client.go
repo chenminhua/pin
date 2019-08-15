@@ -1,15 +1,16 @@
 package main
 
 import (
-	"encoding/binary"
-	"io"
-	"net"
-	"log"
-	"fmt"
-	"time"
-	"bytes"
-	"os"
 	"bufio"
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net"
+	"os"
+	"time"
 )
 
 type ClientConnection struct {
@@ -28,19 +29,37 @@ func connect(conf Conf) *ClientConnection {
 	return &ClientConnection{conn, reader, writer}
 }
 
-
-
-func RunCopy(conf Conf) {
+// 将小文件的二进制流上传到服务器
+// 默认从file中读，
+// 如果file为空，则看有没有传字符串，
+// 如果字符串为空则读os.Stdin
+func RunCopy(conf Conf, filepath string, str string) {
 	client := connect(conf)
 	conn, writer := client.conn, client.writer
 	defer conn.Close()
 
-	var content bytes.Buffer
-	_, err := content.ReadFrom(os.Stdin)
-	if err != nil {
-		log.Fatal(err)
+	var contentBytes []byte
+	var err error
+
+	if filepath != "" {
+		// 读文件
+		contentBytes, err = ioutil.ReadFile(filepath)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if str != "" {
+		// 读字符串
+		contentBytes = []byte(str)
+	} else {
+		// 从os.Stdin读数据
+		var contentBuffer bytes.Buffer
+		_, err = contentBuffer.ReadFrom(os.Stdin)
+		if err != nil {
+			log.Fatal(err)
+		}
+		contentBytes = contentBuffer.Bytes()
 	}
-	contentBytes := content.Bytes()
+
 	contentLength := uint32(len(contentBytes))
 	log.Print(contentLength)
 	header := Header{1, []byte(conf.Key), byte('C'), contentLength}
@@ -82,4 +101,16 @@ func RunPaste(conf Conf) {
 		log.Fatal(err)
 	}
 	binary.Write(os.Stdout, binary.LittleEndian, contentBuf)
+}
+
+func RunPipeCopy(conf Conf) {
+	//client := connect(conf)
+	//conn, writer, reader := client.conn, client.writer, client.reader
+	//defer conn.Close()
+	//
+	//h := Header{}
+}
+
+func RunPipePaste(conf Conf) {
+
 }
