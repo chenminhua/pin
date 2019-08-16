@@ -15,6 +15,8 @@ pin server会开辟一块内存专门存储这部分数据。
 
 原理也很简单，pipe模式下，server会和sender以及receiver分别维护一个连接。当从sender上读取到数据，就写给receiver。
 
+默认每个分片为 4M，你可以通过 -bsize 参数来修改分片大小，比如 -bsize 1 表示采用1M位单位的分片。
+
 
 
 ### quick start

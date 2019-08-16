@@ -8,12 +8,19 @@ import (
 
 const HeaderSize = 38
 const ProtocolVersion = 1
+
+// normal cmd
 const CopyOpCode = byte('C')
 const PasteOpCode = byte('P')
-const ErrReplyCode = byte('E')
+
+// pipe cmd
 const PipeCopyOpCode = byte('c')
 const PipePasteOpCode = byte('p')
 const PipeTransferOpCode = byte('t')
+const PipeTransferLastOpCode = byte('l')  // 最后一个数据包
+
+// err cmd
+const ErrReplyCode = byte('E')
 
 
 type Header struct {
@@ -67,4 +74,8 @@ func PipeCopyOpHeader(key string) *Header {
 
 func PipeTransferOpHeader(key string, contentLength int) *Header {
 	return &Header{ProtocolVersion, []byte(key), PipeTransferOpCode, uint32(contentLength)}
+}
+
+func PipeTransferLastOpHeader(key string, contentLength int) *Header {
+	return &Header{ProtocolVersion, []byte(key), PipeTransferLastOpCode, uint32(contentLength)}
 }

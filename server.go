@@ -115,7 +115,7 @@ func (c *SClient) handle() {
 		c.returnException("Wrong key")
 		return
 	}
-	if header.OpCode == byte('p') || header.OpCode == byte('c') || header.OpCode == byte('t') {
+	if header.OpCode == byte('p') || header.OpCode == byte('c') || header.OpCode == byte('t') || header.OpCode == byte('l') {
 		c.handlePipeCmd(header)
 	} else {
 		c.handleNormalCmd(header)

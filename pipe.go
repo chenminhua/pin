@@ -7,7 +7,7 @@ type Pipe struct {
 	receiveClient *SClient
 }
 
-var PIPE_BLOCK_SIZE int64 = 1024 * 1024
+var ONE_M_BSIZE int64 = 1024 * 1024
 
 func (p *Pipe) checkAndRun() {
 	if pipe.sendClient == nil {
@@ -18,25 +18,31 @@ func (p *Pipe) checkAndRun() {
 		log.Print("receiver is not ready")
 		return
 	}
+	p.run()
+}
+
+func (p *Pipe) run() {
+	sclient, rclient := p.sendClient, p.receiveClient
 	log.Print("sender and receiver both ready")
-	// if sender and receiver both ready, told sender to send
-	h := PipeCopyOpHeader(pipe.sendClient.conf.Key)
-	pipe.sendClient.send(h, nil)
+	// told sender to send
+	sclient.send(PipeCopyOpHeader(pipe.sendClient.conf.Key), nil)
 	var buf []byte
 	for {
-		h1, err := GetHeader(p.sendClient.reader)
+		h, err := GetHeader(p.sendClient.reader)
 		if err != nil {
 			log.Print(err)
 		}
-		buf = pipe.sendClient.read(h1.ContentLen)
-		log.Print(len(buf))
-		h2 := PipeTransferOpHeader(pipe.receiveClient.conf.Key, int(h1.ContentLen))
-		pipe.receiveClient.send(h2, buf)
-		if int64(h2.ContentLen) < PIPE_BLOCK_SIZE {
+		buf = pipe.sendClient.read(h.ContentLen)
+		rclient.send(h, buf)
+		if h.OpCode == PipeTransferLastOpCode {
+			sclient.conn.Close()
+			rclient.conn.Close()
+			p.sendClient = nil
+			p.receiveClient = nil
 			return
 		}
-	}
 
+	}
 }
 
 
