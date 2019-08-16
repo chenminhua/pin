@@ -8,6 +8,13 @@ pin的原理非常简单，当在客户端执行pin copy操作时，pin会将被
 pin server会开辟一块内存专门存储这部分数据。
 当客户端需要paste文件的时候，直接运行pin命令，就可以从pin server上将那块内存的数据拉取到本地。
 
+### pin pipe
+
+普通模式下，pin会将文件全部上传给服务端，并放在服务端内存中。
+但是如果文件太大，这样做会打爆服务端内存，此时需要使用pipe模式。
+
+原理也很简单，pipe模式下，server会和sender以及receiver分别维护一个连接。当从sender上读取到数据，就写给receiver。
+
 
 
 ### quick start
