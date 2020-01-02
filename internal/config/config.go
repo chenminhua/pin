@@ -1,9 +1,7 @@
 package config
 
 import (
-	"github.com/BurntSushi/toml"
 	"github.com/chenminhua/pin/internal/fs"
-	"io/ioutil"
 	"log"
 	"time"
 )
@@ -14,13 +12,10 @@ const (
 	DefaultKey = "iorDDkjFaMAJp8HNxwAWoyNKqLGTmG87"
 )
 
-type tomlConfig struct {
-	Connect     string
-	Listen      string
-	Key         string
-}
-
-// Conf - Shared config
+/**
+	Conf - Shared config
+	Key是用于鉴权的，前后端在发送请求的时候需要带着
+ */
 type Conf struct {
 	Connect        string
 	Listen         string
@@ -32,31 +27,28 @@ type Conf struct {
 
 func Config(configFile *string, timeout *uint) Conf {
 
-	tomlData, err := ioutil.ReadFile(expandConfigFile(*configFile))
-
-	var tomlConf tomlConfig
-	if _, err = toml.Decode(string(tomlData), &tomlConf); err != nil {
-		log.Fatal(err)
-	}
+	tomlConf := getTomlConfig(configFile)
 
 	var conf Conf
 	conf.Connect = DefaultConnect
+	conf.Listen = DefaultListen
+	conf.Key = DefaultKey
+
 	if tomlConf.Connect != "" {
 		conf.Connect = tomlConf.Connect
 	}
-	conf.Listen = DefaultListen
+
 	if tomlConf.Listen != "" {
 		conf.Listen = tomlConf.Listen
 	}
-	conf.Key = DefaultKey
+
 	if tomlConf.Key != "" {
 		conf.Key = tomlConf.Key
 	}
-	conf.Timeout = time.Duration(*timeout) * time.Second
 
+	conf.Timeout = time.Duration(*timeout) * time.Second
 	return conf
 }
-
 
 func expandConfigFile(path string) string {
 	file, err := fs.Expand(path)
