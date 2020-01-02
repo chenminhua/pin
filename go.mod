@@ -1,4 +1,4 @@
-module pin
+module github.com/chenminhua/pin
 
 go 1.13
 

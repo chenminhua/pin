@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/binary"
-	"os"
+	"github.com/chenminhua/pin/internal/fs"
+	"github.com/chenminhua/pin/internal/protocol"
+	"github.com/chenminhua/pin/internal/config"
 	"log"
+	"os"
 )
 
-func RunReceiver(conf Conf, filepath string) {
+func RunReceiver(conf config.Conf, filepath string) {
 	if conf.IsPipe {
 		RunPipePaste(conf, filepath)
 	} else {
@@ -14,14 +17,14 @@ func RunReceiver(conf Conf, filepath string) {
 	}
 }
 
-func RunPaste(conf Conf) {
+func RunPaste(conf config.Conf) {
 	client := connect(conf)
 	defer client.conn.Close()
 
 	// 发送paste请求
-	client.send(PasteOpHeader(conf.Key, 0), nil)
+	client.send(protocol.PasteOpHeader(conf.Key, 0), nil)
 
-	header, err := GetHeader(client.reader)
+	header, err := protocol.GetHeader(client.reader)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -35,21 +38,21 @@ func RunPaste(conf Conf) {
 }
 
 
-func RunPipePaste(conf Conf, filepath string) {
+func RunPipePaste(conf config.Conf, filepath string) {
 
 	if filepath == "" {
 		log.Fatal("please specify the filepath you want to transfer")
 	}
-	if FileExists(filepath) {
+	if fs.FileExists(filepath) {
 		log.Fatal("transfer file ", filepath, " already exists")
 	}
 
 	client := connectWithoutTimeout(conf)
 	defer client.conn.Close()
-	client.send(PipePasteOpHeader(conf.Key), nil)
+	client.send(protocol.PipePasteOpHeader(conf.Key), nil)
 
 	// 发送 pipe paste请求
-	client.send(PipePasteOpHeader(conf.Key), nil)
+	client.send(protocol.PipePasteOpHeader(conf.Key), nil)
 
 	var offset int64 = 0
 
@@ -60,18 +63,18 @@ func RunPipePaste(conf Conf, filepath string) {
 	defer file.Close()
 
 	for {
-		header, err := GetHeader(client.reader)
+		header, err := protocol.GetHeader(client.reader)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		if header.OpCode == ErrReplyCode {
+		if header.OpCode == protocol.ErrReplyCode {
 			errMsg := client.read(header.ContentLen)
 			log.Fatal(string(errMsg))
 			return
 		}
 
-		if header.OpCode == PipeTransferOpCode || header.OpCode == PipeTransferLastOpCode {
+		if header.OpCode == protocol.PipeTransferOpCode || header.OpCode == protocol.PipeTransferLastOpCode {
 			// 表示你可以写了
 			log.Print("transfer at ", offset / ONE_M_BSIZE, "M")
 			buf := client.read(header.ContentLen)
@@ -81,7 +84,7 @@ func RunPipePaste(conf Conf, filepath string) {
 				log.Print(err)
 			}
 			// 收到最后一个包退出
-			if header.OpCode == PipeTransferLastOpCode {
+			if header.OpCode == protocol.PipeTransferLastOpCode {
 				log.Print("transfer finished")
 				return
 			}

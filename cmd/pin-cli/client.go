@@ -1,21 +1,25 @@
 package main
 
+
+
 import (
 	"bufio"
 	"fmt"
+	"github.com/chenminhua/pin/internal/protocol"
 	"io"
 	"log"
 	"net"
+	"github.com/chenminhua/pin/internal/config"
 )
 
 type Client struct {
 	conn net.Conn
-	conf Conf
+	conf config.Conf
 	reader *bufio.Reader
 	writer *bufio.Writer
 }
 
-func connect(conf Conf) *Client {
+func connect(conf config.Conf) *Client {
 	conn, err := net.DialTimeout("tcp", conf.Connect, conf.Timeout)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("unable to connect %v", conf.Connect))
@@ -24,7 +28,7 @@ func connect(conf Conf) *Client {
 	return &Client{conn, conf, reader, writer}
 }
 
-func connectWithoutTimeout(conf Conf) *Client {
+func connectWithoutTimeout(conf config.Conf) *Client {
 	conn, err := net.Dial("tcp", conf.Connect)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("unable to connect %v", conf.Connect))
@@ -33,7 +37,7 @@ func connectWithoutTimeout(conf Conf) *Client {
 	return &Client{conn, conf, reader, writer}
 }
 
-func (c *Client) send(header *Header, content []byte) {
+func (c *Client) send(header *protocol.Header, content []byte) {
 	var err error
 	_, err = c.writer.Write(header.Bytes())
 	if err != nil {

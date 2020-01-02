@@ -1,14 +1,14 @@
-package main
+package fs
 
 import (
+	"bytes"
 	"errors"
 	"os"
-	"strings"
-	"bytes"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 )
 

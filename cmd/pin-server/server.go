@@ -2,20 +2,22 @@ package main
 
 import (
 	"bufio"
+	"github.com/chenminhua/pin/internal/protocol"
 	"io"
 	"log"
 	"net"
+	"github.com/chenminhua/pin/internal/config"
 )
 
 // client connection on server end
 type SClient struct {
 	conn net.Conn
-	conf Conf
+	conf config.Conf
 	reader *bufio.Reader
 	writer *bufio.Writer
 }
 
-func NewSClient(conn net.Conn, conf Conf) *SClient {
+func NewSClient(conn net.Conn, conf config.Conf) *SClient {
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 	return &SClient{conn, conf, reader, writer}
@@ -24,11 +26,11 @@ func NewSClient(conn net.Conn, conf Conf) *SClient {
 func (c *SClient) returnException(msg string) {
 	// 1.log
 	// 2.return to client
-	h := ErrReplyHeader(c.conf.Key, len(msg))
+	h := protocol.ErrReplyHeader(c.conf.Key, len(msg))
 	c.send(h, []byte(msg))
 }
 
-func (c *SClient) send(header *Header, content []byte) {
+func (c *SClient) send(header *protocol.Header, content []byte) {
 	var err error
 	_, err = c.writer.Write(header.Bytes())
 	if err != nil {
@@ -71,19 +73,19 @@ func store(reader *bufio.Reader, contentLen uint32) {
 	storedContent.Unlock()
 }
 
-func (c *SClient) handleNormalCmd(header *Header) {
+func (c *SClient) handleNormalCmd(header *protocol.Header) {
 	if header.OpCode == byte('C') {
 		store(c.reader, header.ContentLen)
 	}
 	if header.OpCode == byte('P') {
-		h := PasteOpHeader(c.conf.Key, len(storedContent.content))
+		h := protocol.PasteOpHeader(c.conf.Key, len(storedContent.content))
 		c.send(h, storedContent.content)
 	}
 	defer c.conn.Close()
 
 }
 
-func (c *SClient) handlePipeCmd(header *Header) {
+func (c *SClient) handlePipeCmd(header *protocol.Header) {
 	// someone try to paste something from pipe channel
 	if header.OpCode == byte('p') {
 		// todo thread-safe??
@@ -106,7 +108,7 @@ func (c *SClient) handlePipeCmd(header *Header) {
 
 func (c *SClient) handle() {
 
-	header, err := GetHeader(c.reader)
+	header, err := protocol.GetHeader(c.reader)
 	if err != nil {
 		c.returnException("Wrong Header")
 		return
@@ -122,7 +124,7 @@ func (c *SClient) handle() {
 	}
 }
 
-func RunServer(conf Conf) {
+func RunServer(conf config.Conf) {
 	// go handleSignals()
 	listener, err := net.Listen("tcp", conf.Listen)
 	if err != nil {

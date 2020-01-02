@@ -1,7 +1,8 @@
-package main
+package config
 
 import (
 	"github.com/BurntSushi/toml"
+	"github.com/chenminhua/pin/internal/fs"
 	"io/ioutil"
 	"log"
 	"time"
@@ -17,6 +18,16 @@ type tomlConfig struct {
 	Connect     string
 	Listen      string
 	Key         string
+}
+
+// Conf - Shared config
+type Conf struct {
+	Connect        string
+	Listen         string
+	Key            string
+	IsPipe         bool
+	PipeBlockSize  int64
+	Timeout        time.Duration
 }
 
 func Config(configFile *string, timeout *uint) Conf {
@@ -44,4 +55,13 @@ func Config(configFile *string, timeout *uint) Conf {
 	conf.Timeout = time.Duration(*timeout) * time.Second
 
 	return conf
+}
+
+
+func expandConfigFile(path string) string {
+	file, err := fs.Expand(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return file
 }

@@ -1,6 +1,9 @@
 package main
 
-import "log"
+import (
+	"github.com/chenminhua/pin/internal/protocol"
+	"log"
+)
 
 type Pipe struct {
 	sendClient *SClient
@@ -25,16 +28,16 @@ func (p *Pipe) run() {
 	sclient, rclient := p.sendClient, p.receiveClient
 	log.Print("sender and receiver both ready")
 	// told sender to send
-	sclient.send(PipeCopyOpHeader(pipe.sendClient.conf.Key), nil)
+	sclient.send(protocol.PipeCopyOpHeader(pipe.sendClient.conf.Key), nil)
 	var buf []byte
 	for {
-		h, err := GetHeader(p.sendClient.reader)
+		h, err := protocol.GetHeader(p.sendClient.reader)
 		if err != nil {
 			log.Print(err)
 		}
 		buf = pipe.sendClient.read(h.ContentLen)
 		rclient.send(h, buf)
-		if h.OpCode == PipeTransferLastOpCode {
+		if h.OpCode == protocol.PipeTransferLastOpCode {
 			sclient.conn.Close()
 			rclient.conn.Close()
 			p.sendClient = nil
