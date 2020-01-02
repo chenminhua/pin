@@ -3,7 +3,6 @@ package main
 import (
 	// "fmt"
 	"flag"
-	"github.com/mitchellh/go-homedir"
 	"log"
 	"time"
 )
@@ -26,7 +25,7 @@ const (
 
 
 func expandConfigFile(path string) string {
-	file, err := homedir.Expand(path)
+	file, err := Expand(path)
 	if err != nil {
 		log.Fatal(err)
 	}
