@@ -17,18 +17,23 @@ pin server会开辟一块内存专门存储这部分数据。
 
 默认每个分片为 4M，你可以通过 -bsize 参数来修改分片大小，比如 -bsize 1 表示采用1M位单位的分片。
 
+### build
+
+
 
 
 ### quick start
 
+```sh
+go build -o . github.com/chenminhua/pin/cmd/...
+```
 
 
 ```sh
-## in your server,run
-pin --server
+pin-server
 
 ## in your client which you want to copy the file, run
-pin --copy < file
+pin-cli --copy < file
 ## 推荐设置 alias pinc="pin --copy <"
 
 ## in your client which you want to paste the file, run

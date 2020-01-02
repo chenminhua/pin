@@ -24,7 +24,17 @@ func (p *Pipe) checkAndRun() {
 	p.run()
 }
 
+func (p *Pipe) close() {
+	p.receiveClient.conn.Close()
+	p.sendClient.conn.Close()
+
+	p.sendClient = nil
+	p.receiveClient = nil
+}
+
+
 func (p *Pipe) run() {
+	defer p.close()
 	sclient, rclient := p.sendClient, p.receiveClient
 	log.Print("sender and receiver both ready")
 	// told sender to send
@@ -38,13 +48,8 @@ func (p *Pipe) run() {
 		buf = pipe.sendClient.read(h.ContentLen)
 		rclient.send(h, buf)
 		if h.OpCode == protocol.PipeTransferLastOpCode {
-			sclient.conn.Close()
-			rclient.conn.Close()
-			p.sendClient = nil
-			p.receiveClient = nil
 			return
 		}
-
 	}
 }
 

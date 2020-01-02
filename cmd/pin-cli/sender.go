@@ -92,6 +92,7 @@ func RunPipeCopy(conf config.Conf, filepath string) {
 			buf := make([]byte, conf.PipeBlockSize)
 			// todo progress
 			var offset int64 = 0
+			// 可能存在乱序问题
 			for {
 				n, err := file.ReadAt(buf, offset)
 				if err != nil && err != io.EOF {
